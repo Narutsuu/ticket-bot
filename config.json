@@ -1,0 +1,43 @@
+{
+  "colors": {
+    "primary": "#5865F2",
+    "success": "#57F287",
+    "error": "#ED4245",
+    "warning": "#FEE75C",
+    "info": "#00B0F4"
+  },
+  "categories": [
+    {
+      "name": "support",
+      "label": "Support",
+      "emoji": "🆘"
+    },
+    {
+      "name": "report",
+      "label": "Signalement",
+      "emoji": "📋"
+    },
+    {
+      "name": "appeal",
+      "label": "Appel",
+      "emoji": "⚖️"
+    },
+    {
+      "name": "partnership",
+      "label": "Partenariat",
+      "emoji": "🤝"
+    }
+  ],
+  "messages": {
+    "ticketCreated": "✅ Ticket créé avec succès !",
+    "ticketClosed": "🔒 Ticket fermé avec succès !",
+    "ticketArchived": "📦 Ticket archivé !",
+    "userAdded": "➕ {user} a été ajouté au ticket",
+    "userRemoved": "➖ {user} a été retiré du ticket"
+  },
+  "limits": {
+    "maxOpenTickets": 3,
+    "ticketTimeout": 604800000,
+    "archiveAfterClose": 604800000
+  }
+}

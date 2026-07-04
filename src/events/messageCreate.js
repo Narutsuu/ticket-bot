@@ -1,3 +1,39 @@
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+
+const configPath = path.join(__dirname, '../../ticketConfig.json');
+
+function loadConfig() {
+  if (fs.existsSync(configPath)) {
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  }
+  return {
+    categories: [
+      { name: 'support', label: 'Support', emoji: '🆘' },
+      { name: 'report', label: 'Signalement', emoji: '📋' },
+      { name: 'appeal', label: 'Appel', emoji: '⚖️' },
+      { name: 'partnership', label: 'Partenariat', emoji: '🤝' }
+    ],
+    colors: {
+      primary: '#5865F2',
+      success: '#57F287',
+      error: '#ED4245',
+      warning: '#FEE75C',
+      info: '#00B0F4'
+    },
+    messages: {
+      welcome: 'Bienvenue dans ce ticket de support!',
+      maxTickets: 3,
+      ticketPrefix: 'ticket'
+    }
+  };
+}
+
+function saveConfig(config) {
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
 module.exports = {
   name: 'messageCreate',
   async execute(message, client) {
@@ -11,7 +47,6 @@ module.exports = {
 
     try {
       if (command === 'help' || command === 'h') {
-        const { EmbedBuilder } = require('discord.js');
         const embed = new EmbedBuilder()
           .setColor('#5865F2')
           .setTitle('🎫 Ticket Bot - Commandes')
@@ -19,8 +54,8 @@ module.exports = {
             { name: '!help', value: 'Affiche cette aide', inline: false },
             { name: '!ping', value: 'Latence du bot', inline: false },
             { name: '!about', value: 'Info du bot', inline: false },
-            { name: '!ticket setup', value: 'Configure et envoie le panel de tickets', inline: false },
-            { name: '!ticket config', value: 'Modifie la configuration des tickets', inline: false },
+            { name: '!ticket setup', value: 'Envoie le panel de tickets', inline: false },
+            { name: '!ticket config', value: 'Ouvre le menu de configuration complet', inline: false },
             { name: '!ticket close', value: 'Ferme le ticket actuel', inline: false },
             { name: '!ticket add @user', value: 'Ajoute un utilisateur', inline: false },
             { name: '!ticket remove @user', value: 'Retire un utilisateur', inline: false },
@@ -30,7 +65,6 @@ module.exports = {
       }
 
       if (command === 'ping') {
-        const { EmbedBuilder } = require('discord.js');
         const embed = new EmbedBuilder()
           .setColor('#57F287')
           .setTitle('🏓 Pong!')
@@ -42,12 +76,11 @@ module.exports = {
       }
 
       if (command === 'about') {
-        const { EmbedBuilder } = require('discord.js');
         const embed = new EmbedBuilder()
           .setColor('#00B0F4')
           .setTitle('ℹ️ Ticket Bot')
           .addFields(
-            { name: 'Version', value: '2.0.0', inline: true },
+            { name: 'Version', value: '2.0.0 Pro', inline: true },
             { name: 'Dev', value: 'Narutsuu', inline: true },
             { name: 'Serveurs', value: client.guilds.cache.size.toString(), inline: true }
           );
@@ -56,8 +89,7 @@ module.exports = {
 
       if (command === 'ticket') {
         const subcommand = args[0]?.toLowerCase();
-        const config = require('../../config.json');
-        const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+        const config = loadConfig();
 
         if (subcommand === 'setup') {
           if (!message.member.permissions.has('ManageMessages')) {
@@ -96,25 +128,27 @@ module.exports = {
 
           const embed = new EmbedBuilder()
             .setColor(config.colors.primary)
-            .setTitle('⚙️ Configuration des Tickets')
+            .setTitle('⚙️ Configuration Complète')
+            .setDescription('Configurez tous les aspects du système de tickets')
             .addFields(
-              { name: '📝 Catégories actuelles', value: config.categories.map(c => `${c.emoji} ${c.label}`).join('\n'), inline: false },
-              { name: '🎨 Couleurs', value: `Principal: ${config.colors.primary}\nSuccès: ${config.colors.success}\nErreur: ${config.colors.error}`, inline: false },
-              { name: '⏰ Limites', value: `Max tickets: ${config.limits.maxOpenTickets}\nTimeout: ${config.limits.ticketTimeout}ms`, inline: false }
-            )
-            .setFooter({ text: 'Sélectionnez ce que vous voulez modifier' });
+              { name: '📝 Catégories', value: `${config.categories.length} catégories configurées`, inline: true },
+              { name: '🎨 Couleurs', value: 'Personnalisables', inline: true },
+              { name: '💬 Messages', value: 'Modifiables', inline: true },
+              { name: '⏰ Limites', value: `Max: ${config.messages.maxTickets} tickets`, inline: true }
+            );
 
-          const configMenu = new StringSelectMenuBuilder()
-            .setCustomId('config_select')
+          const mainMenu = new StringSelectMenuBuilder()
+            .setCustomId('main_config_select')
             .setPlaceholder('Que voulez-vous configurer?')
             .addOptions([
-              { label: 'Ajouter une catégorie', value: 'add_category', emoji: '➕', description: 'Ajouter une nouvelle catégorie de ticket' },
-              { label: 'Supprimer une catégorie', value: 'remove_category', emoji: '➖', description: 'Supprimer une catégorie existante' },
-              { label: 'Modifier couleurs', value: 'modify_colors', emoji: '🎨', description: 'Personnaliser les couleurs des embeds' },
-              { label: 'Modifier limites', value: 'modify_limits', emoji: '⏰', description: 'Modifier les limites de tickets' }
+              { label: 'Gestion Catégories', value: 'manage_categories', emoji: '📝', description: 'Ajouter/Modifier/Supprimer des catégories' },
+              { label: 'Personnaliser Couleurs', value: 'customize_colors', emoji: '🎨', description: 'Modifier les couleurs des embeds' },
+              { label: 'Messages Personnalisés', value: 'customize_messages', emoji: '💬', description: 'Modifier les messages du bot' },
+              { label: 'Limites & Préférences', value: 'limits_prefs', emoji: '⚙️', description: 'Configurer les limites et préférences' },
+              { label: 'Aperçu Configuration', value: 'preview_config', emoji: '👁️', description: 'Voir la config actuelle' }
             ]);
 
-          const row = new ActionRowBuilder().addComponents(configMenu);
+          const row = new ActionRowBuilder().addComponents(mainMenu);
           return message.reply({ embeds: [embed], components: [row] });
         }
 

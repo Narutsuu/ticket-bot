@@ -1,4 +1,4 @@
-const { Client, Collection, GatewayIntentBits, ActivityType } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, ActivityType, REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -14,19 +14,22 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.prefixCommands = new Collection();
 client.buttons = new Collection();
 client.modals = new Collection();
 client.events = new Collection();
 
-// Load commands
+// Load slash commands
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commands = [];
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
   const command = require(filePath);
   if (command.data && command.execute) {
     client.commands.set(command.data.name, command);
+    commands.push(command.data.toJSON());
   }
 }
 
@@ -70,4 +73,45 @@ for (const file of eventFiles) {
   }
 }
 
-client.login(process.env.DISCORD_TOKEN);
+// Register slash commands globally
+async function registerSlashCommands() {
+  try {
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    
+    console.log('📋 Registering slash commands globally...');
+    
+    const data = await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    
+    console.log(`✅ Successfully registered ${data.length} slash commands globally`);
+  } catch (error) {
+    console.error('❌ Error registering slash commands:', error);
+  }
+}
+
+// Error handling
+client.on('error', error => {
+  console.error('❌ Bot error:', error);
+});
+
+process.on('unhandledRejection', error => {
+  console.error('❌ Unhandled promise rejection:', error);
+});
+
+// Check for required environment variables
+if (!process.env.DISCORD_TOKEN) {
+  console.error('❌ ERROR: DISCORD_TOKEN is not set in .env file');
+  process.exit(1);
+}
+
+console.log('🚀 Starting Ticket Bot...');
+client.once('ready', () => {
+  registerSlashCommands();
+});
+
+client.login(process.env.DISCORD_TOKEN).catch(error => {
+  console.error('❌ Failed to login:', error.message);
+  process.exit(1);
+});

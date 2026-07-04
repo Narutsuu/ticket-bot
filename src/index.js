@@ -1,4 +1,4 @@
-const { Client, Collection, GatewayIntentBits, ActivityType, REST, Routes } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, ActivityType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -14,22 +14,25 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-client.prefixCommands = new Collection();
 client.buttons = new Collection();
 client.modals = new Collection();
 client.events = new Collection();
 
-// Load slash commands
+// Load commands
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-const commands = [];
-
-for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
-  if (command.data && command.execute) {
-    client.commands.set(command.data.name, command);
-    commands.push(command.data.toJSON());
+if (fs.existsSync(commandsPath)) {
+  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+  for (const file of commandFiles) {
+    try {
+      const filePath = path.join(commandsPath, file);
+      const command = require(filePath);
+      if (command.data && command.execute) {
+        client.commands.set(command.data.name, command);
+        console.log(`✅ Loaded command: ${command.data.name}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error loading command ${file}:`, error);
+    }
   }
 }
 
@@ -38,10 +41,15 @@ const buttonsPath = path.join(__dirname, 'buttons');
 if (fs.existsSync(buttonsPath)) {
   const buttonFiles = fs.readdirSync(buttonsPath).filter(file => file.endsWith('.js'));
   for (const file of buttonFiles) {
-    const filePath = path.join(buttonsPath, file);
-    const button = require(filePath);
-    if (button.customId) {
-      client.buttons.set(button.customId, button);
+    try {
+      const filePath = path.join(buttonsPath, file);
+      const button = require(filePath);
+      if (button.customId) {
+        client.buttons.set(button.customId, button);
+        console.log(`✅ Loaded button: ${button.customId}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error loading button ${file}:`, error);
     }
   }
 }
@@ -51,43 +59,38 @@ const modalsPath = path.join(__dirname, 'modals');
 if (fs.existsSync(modalsPath)) {
   const modalFiles = fs.readdirSync(modalsPath).filter(file => file.endsWith('.js'));
   for (const file of modalFiles) {
-    const filePath = path.join(modalsPath, file);
-    const modal = require(filePath);
-    if (modal.customId) {
-      client.modals.set(modal.customId, modal);
+    try {
+      const filePath = path.join(modalsPath, file);
+      const modal = require(filePath);
+      if (modal.customId) {
+        client.modals.set(modal.customId, modal);
+        console.log(`✅ Loaded modal: ${modal.customId}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error loading modal ${file}:`, error);
     }
   }
 }
 
 // Load events
 const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
-for (const file of eventFiles) {
-  const filePath = path.join(eventsPath, file);
-  const event = require(filePath);
-  if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args, client));
-  } else {
-    client.on(event.name, (...args) => event.execute(...args, client));
-  }
-}
-
-// Register slash commands globally
-async function registerSlashCommands() {
-  try {
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    
-    console.log('📋 Registering slash commands globally...');
-    
-    const data = await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands }
-    );
-    
-    console.log(`✅ Successfully registered ${data.length} slash commands globally`);
-  } catch (error) {
-    console.error('❌ Error registering slash commands:', error);
+if (fs.existsSync(eventsPath)) {
+  const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+  for (const file of eventFiles) {
+    try {
+      const filePath = path.join(eventsPath, file);
+      const event = require(filePath);
+      if (event.name) {
+        if (event.once) {
+          client.once(event.name, (...args) => event.execute(...args, client));
+        } else {
+          client.on(event.name, (...args) => event.execute(...args, client));
+        }
+        console.log(`✅ Loaded event: ${event.name}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error loading event ${file}:`, error);
+    }
   }
 }
 
@@ -97,21 +100,13 @@ client.on('error', error => {
 });
 
 process.on('unhandledRejection', error => {
-  console.error('❌ Unhandled promise rejection:', error);
+  console.error('❌ Unhandled rejection:', error);
 });
 
-// Check for required environment variables
 if (!process.env.DISCORD_TOKEN) {
-  console.error('❌ ERROR: DISCORD_TOKEN is not set in .env file');
+  console.error('❌ ERROR: DISCORD_TOKEN not set in .env');
   process.exit(1);
 }
 
 console.log('🚀 Starting Ticket Bot...');
-client.once('ready', () => {
-  registerSlashCommands();
-});
-
-client.login(process.env.DISCORD_TOKEN).catch(error => {
-  console.error('❌ Failed to login:', error.message);
-  process.exit(1);
-});
+client.login(process.env.DISCORD_TOKEN);
